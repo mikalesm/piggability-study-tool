@@ -26,6 +26,7 @@ export async function getRepo(): Promise<PiggabilityRepo> {
       import.meta.env.VITE_SUPABASE_URL as string,
       import.meta.env.VITE_SUPABASE_ANON_KEY as string,
       (import.meta.env.VITE_TENANT_ID as string) || 'default',
+      (import.meta.env.VITE_SUPABASE_TABLE_PREFIX as string) || '',
     )
   } else {
     instance = new LocalRepo()

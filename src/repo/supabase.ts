@@ -9,19 +9,29 @@ import type { PiggabilityRepo, Project, StoredSegment } from './types'
  *
  * Segment and study payloads are stored as jsonb so the engine's types remain
  * the single source of truth without schema churn.
+ *
+ * `tablePrefix` lets the same schema live alongside another app's tables in a
+ * shared project (e.g. "pgy_"). Empty for a dedicated project.
  */
 export class SupabaseRepo implements PiggabilityRepo {
   private client: SupabaseClient
   private tenantId: string
+  private prefix: string
 
-  constructor(url: string, anonKey: string, tenantId: string) {
+  constructor(url: string, anonKey: string, tenantId: string, tablePrefix = '') {
     this.client = createClient(url, anonKey)
     this.tenantId = tenantId
+    this.prefix = tablePrefix
+  }
+
+  /** Resolve a logical table name to its physical (prefixed) name. */
+  private t(name: string): string {
+    return `${this.prefix}${name}`
   }
 
   async listProjects(): Promise<Project[]> {
     const { data, error } = await this.client
-      .from('project')
+      .from(this.t('project'))
       .select('id,name,client,code,created_at')
       .eq('tenant_id', this.tenantId)
     if (error) throw error
@@ -36,7 +46,7 @@ export class SupabaseRepo implements PiggabilityRepo {
 
   async getProject(id: string): Promise<Project | null> {
     const { data, error } = await this.client
-      .from('project')
+      .from(this.t('project'))
       .select('id,name,client,code,created_at')
       .eq('tenant_id', this.tenantId)
       .eq('id', id)
@@ -53,7 +63,7 @@ export class SupabaseRepo implements PiggabilityRepo {
   }
 
   async saveProject(project: Project): Promise<void> {
-    const { error } = await this.client.from('project').upsert({
+    const { error } = await this.client.from(this.t('project')).upsert({
       id: project.id,
       tenant_id: this.tenantId,
       name: project.name,
@@ -66,7 +76,7 @@ export class SupabaseRepo implements PiggabilityRepo {
 
   async deleteProject(id: string): Promise<void> {
     const { error } = await this.client
-      .from('project')
+      .from(this.t('project'))
       .delete()
       .eq('tenant_id', this.tenantId)
       .eq('id', id)
@@ -75,7 +85,7 @@ export class SupabaseRepo implements PiggabilityRepo {
 
   async listSegments(projectId: string): Promise<StoredSegment[]> {
     const { data, error } = await this.client
-      .from('segment')
+      .from(this.t('segment'))
       .select('id,project_id,payload')
       .eq('tenant_id', this.tenantId)
       .eq('project_id', projectId)
@@ -89,7 +99,7 @@ export class SupabaseRepo implements PiggabilityRepo {
 
   async getSegment(id: string): Promise<StoredSegment | null> {
     const { data, error } = await this.client
-      .from('segment')
+      .from(this.t('segment'))
       .select('id,project_id,payload')
       .eq('tenant_id', this.tenantId)
       .eq('id', id)
@@ -101,7 +111,7 @@ export class SupabaseRepo implements PiggabilityRepo {
 
   async saveSegment(segment: StoredSegment): Promise<void> {
     const { projectId, ...rest } = segment
-    const { error } = await this.client.from('segment').upsert({
+    const { error } = await this.client.from(this.t('segment')).upsert({
       id: segment.id,
       tenant_id: this.tenantId,
       project_id: projectId,
@@ -112,7 +122,7 @@ export class SupabaseRepo implements PiggabilityRepo {
 
   async deleteSegment(id: string): Promise<void> {
     const { error } = await this.client
-      .from('segment')
+      .from(this.t('segment'))
       .delete()
       .eq('tenant_id', this.tenantId)
       .eq('id', id)
@@ -121,7 +131,7 @@ export class SupabaseRepo implements PiggabilityRepo {
 
   async getStudy(segmentId: string): Promise<StudyInputs | null> {
     const { data, error } = await this.client
-      .from('study_input')
+      .from(this.t('study_input'))
       .select('segment_id,payload')
       .eq('tenant_id', this.tenantId)
       .eq('segment_id', segmentId)
@@ -131,7 +141,7 @@ export class SupabaseRepo implements PiggabilityRepo {
   }
 
   async saveStudy(segmentId: string, inputs: StudyInputs): Promise<void> {
-    const { error } = await this.client.from('study_input').upsert({
+    const { error } = await this.client.from(this.t('study_input')).upsert({
       segment_id: segmentId,
       tenant_id: this.tenantId,
       payload: inputs,

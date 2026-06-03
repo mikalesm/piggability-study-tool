@@ -67,7 +67,9 @@ alter table public.study_input      enable row level security;
 alter table public.assessment_cache enable row level security;
 
 create or replace function public.jwt_tenant_id() returns text
-language sql stable as $$
+language sql stable
+set search_path = ''
+as $$
   select coalesce(
     nullif(current_setting('request.jwt.claims', true)::jsonb ->> 'tenant_id', ''),
     'default'

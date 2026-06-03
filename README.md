@@ -38,17 +38,22 @@ npm test         # engine unit tests (vitest)
 npm run build    # typecheck (tsc -b) + production build
 ```
 
+### Managing projects & segments
+
+- **Project bar:** create, rename, switch, and delete projects (the last project can't be deleted).
+- **Add segment** opens a design-data editor (nominal bore, grade, pressures, medium, wall thickness, etc.). Leave wall thickness blank to compute the B31.4 minimum; the medium can be marked *Unknown (assume Liquid)*. Validation blocks save unless a wall thickness **or** a design pressure is provided.
+- **Edit / Delete** act on the selected segment. Everything persists through the active repo (localStorage or Supabase).
+
 ### Optional: Supabase persistence
 
-Copy `.env.example` to `.env` and set:
+Copy `.env.example` to `.env` and set `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` (a publishable / anon key — these are client-safe). Two ways to host the schema:
 
-```
-VITE_SUPABASE_URL=...
-VITE_SUPABASE_ANON_KEY=...
-VITE_TENANT_ID=your-tenant
-```
+- **Dedicated project** — apply `supabase/migrations/0001_init.sql`, leave `VITE_SUPABASE_TABLE_PREFIX` empty.
+- **Shared project** (reuse an existing Supabase project alongside another app) — apply `supabase/migrations/0002_shared_prefixed.sql` and set `VITE_SUPABASE_TABLE_PREFIX=pgy_`. All tables are namespaced `pgy_*` so they don't collide with the host app.
 
-Apply the schema in `supabase/migrations/0001_init.sql` (`supabase db push` or the SQL editor). Without these, the app uses localStorage.
+Multi-tenant RLS scopes every row by `tenant_id` (from the JWT `tenant_id` claim; anonymous access resolves to `default`). Without any env, the app uses localStorage.
+
+> **Note on the live demo:** the GitHub Pages build intentionally ships **without** Supabase env, so the public site uses localStorage (the shared database isn't exposed to the open internet). To point a deployment at Supabase, add the env as GitHub Actions secrets and pass them in the build step.
 
 ## Project structure
 

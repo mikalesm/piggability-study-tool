@@ -29,6 +29,8 @@ export const GLOSSARY: Record<string, string> = {
     'ASME B31.4 minimum wall thickness — computed from design pressure, diameter, grade and a design factor when as-built wall is not in the data. Used as a stand-in and flagged for confirmation.',
   'd-over-t':
     'Diameter-to-wall-thickness ratio (OD ÷ WT). A quick index of how thin-walled the pipe is; high values are thin, low values are heavy-wall.',
+  'risk-screening':
+    'Three indicative, deterministic screening gauges — Execution risk (how smoothly the line can be pigged), Data confidence (how much rests on assumed/computed values), and Inspection priority (a service-severity ranking). They are screening aids, not a fitness-for-service or integrity assessment.',
 }
 
 export function glossaryText(term: string): string | undefined {

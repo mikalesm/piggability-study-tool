@@ -297,6 +297,82 @@ describe('verdict rationale', () => {
   })
 })
 
+// ---- risk profile ----------------------------------------------------------
+
+describe('risk profile', () => {
+  it('clean piggable line: low execution, factors recorded', () => {
+    const a = assess(seg({ wtMm: 10, medium: 'Liquid' }), study())
+    expect(a.risk.execution.band).toBe('Low')
+    expect(a.risk.execution.score).toBeLessThan(25)
+    expect(a.risk.execution.factors.length).toBeGreaterThan(0)
+  })
+
+  it('missing trap raises execution band', () => {
+    const base = assess(seg({ wtMm: 10 }), study()).risk.execution.score
+    const worse = assess(seg({ wtMm: 10 }), study({ receiver: false })).risk.execution.score
+    expect(worse).toBeGreaterThan(base)
+    expect(assess(seg({ wtMm: 10 }), study({ receiver: false })).risk.execution.band).not.toBe('Low')
+  })
+
+  it('computed wall lowers confidence vs as-built', () => {
+    const asBuilt = assess(seg({ wtMm: 10 }), study()).risk.confidence.score
+    const computed = assess(seg({ wtMm: null, designPressureBarg: 300 }), study()).risk.confidence.score
+    expect(computed).toBeLessThan(asBuilt)
+  })
+
+  it('confidence is 0–100 and bands map correctly', () => {
+    const a = assess(seg({ wtMm: 10, mediumAssumed: false }), study())
+    expect(a.risk.confidence.score).toBeGreaterThanOrEqual(0)
+    expect(a.risk.confidence.score).toBeLessThanOrEqual(100)
+  })
+
+  it('higher design pressure raises inspection priority', () => {
+    const lo = assess(seg({ wtMm: 10, designPressureBarg: 100 }), study()).risk.priority.score
+    const hi = assess(seg({ wtMm: 10, designPressureBarg: 320 }), study()).risk.priority.score
+    expect(hi).toBeGreaterThan(lo)
+  })
+
+  it('recommended tool near its velocity / bend limit adds execution flags', () => {
+    // UT Wall window 0.3–2 m/s, bendMin 1.5D. Velocity 1.9 and bend 1.8 sit at the edge.
+    const a = assess(seg({ wtMm: 10, medium: 'Liquid' }), study({ velocity: 1.9, bendD: 1.8 }))
+    const labels = a.risk.execution.factors.map((f) => f.label)
+    expect(labels).toContain('Velocity near tool limit')
+    expect(labels).toContain('Bend near tool limit')
+    expect(a.risk.execution.score).toBeGreaterThan(0)
+  })
+
+  it('heavy debris + dual diameter add execution flags', () => {
+    const a = assess(seg({ wtMm: 10 }), study({ cleanliness: 'Heavy debris', dualDia: true }))
+    const labels = a.risk.execution.factors.map((f) => f.label)
+    expect(labels).toContain('Heavy debris')
+    expect(labels).toContain('Dual diameter')
+  })
+
+  it('not-piggable line scores High execution', () => {
+    const a = assess(seg({ wtMm: 10 }), study({ bendD: 0.5 }))
+    expect(a.risk.execution.band).toBe('High')
+  })
+
+  it('fully-assumed line scores Low confidence', () => {
+    const a = assess(
+      seg({ wtMm: null, designPressureBarg: 300, mediumAssumed: true, mopAssumed: true, lengthIllustrative: true }),
+      study(),
+    )
+    expect(a.risk.confidence.band).toBe('Low')
+  })
+
+  it('every gauge stays within 0–100', () => {
+    for (const s of SEED_SEGMENTS) {
+      const r = assess(s, defaultStudy(s)).risk
+      for (const g of [r.execution, r.confidence, r.priority]) {
+        expect(g.score).toBeGreaterThanOrEqual(0)
+        expect(g.score).toBeLessThanOrEqual(100)
+        expect(['Low', 'Medium', 'High']).toContain(g.band)
+      }
+    }
+  })
+})
+
 // ---- assertions on the seed fleet -----------------------------------------
 
 describe('seed fleet expectations', () => {

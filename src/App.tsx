@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Download, Gauge, Plus, Pencil, Trash2, AlertTriangle, Search, X, ArrowRight } from 'lucide-react'
+import { Download, Gauge, Plus, Pencil, Trash2, AlertTriangle, Search, X, ArrowRight, Settings2, Sparkles } from 'lucide-react'
 import { assess, defaultStudy } from './engine'
+import { aiConfigured } from './ai'
 import type { Assessment, StudyInputs, Verdict } from './engine/types'
 import { getRepo, repoLabel } from './repo'
 import type { Project, StoredSegment } from './repo/types'
@@ -11,7 +12,11 @@ import { SegmentEditor } from './ui/SegmentEditor'
 import { ProjectBar } from './ui/ProjectBar'
 import { ProjectEditor, type ProjectDraft } from './ui/ProjectEditor'
 import { ConfirmDialog } from './ui/ConfirmDialog'
+import { SettingsModal } from './ui/SettingsModal'
+import { AiInsights } from './ui/AiInsights'
+import { AiFleetSummary } from './ui/AiFleetSummary'
 import { VerdictCard } from './ui/VerdictCard'
+import { RiskPanel } from './ui/RiskPanel'
 import { SuitabilityMatrix } from './ui/SuitabilityMatrix'
 import { ScopeCard } from './ui/ScopeCard'
 import { ActionsCard } from './ui/ActionsCard'
@@ -62,6 +67,9 @@ export default function App() {
   const [hintDismissed, setHintDismissed] = useState(
     () => typeof localStorage !== 'undefined' && localStorage.getItem(HINT_KEY) === '1',
   )
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [aiOn, setAiOn] = useState(() => aiConfigured())
+  const [fleetSummaryOpen, setFleetSummaryOpen] = useState(false)
 
   const detailRef = useRef<HTMLDivElement>(null)
   const matrixRef = useRef<HTMLDivElement>(null)
@@ -313,10 +321,21 @@ export default function App() {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded-md border border-line bg-panel px-2.5 py-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 text-emerald-400 shadow-led" />
-            <span className="label hidden sm:inline">Storage</span>
-            <span className="num text-[11px] text-fg-muted">{repoLabel()}</span>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 rounded-md border border-line bg-panel px-2.5 py-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 text-emerald-400 shadow-led" />
+              <span className="label hidden sm:inline">Storage</span>
+              <span className="num text-[11px] text-fg-muted">{repoLabel()}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-md border border-line bg-panel px-2.5 py-1.5 text-fg-dim transition-colors hover:border-line-strong hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+              aria-label="AI settings"
+            >
+              <Settings2 size={15} />
+              <span className={`label hidden sm:inline ${aiOn ? 'text-emerald-300' : ''}`}>{aiOn ? 'AI on' : 'AI'}</span>
+            </button>
           </div>
         </div>
         <div className="num mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-fg-dim">
@@ -416,9 +435,16 @@ export default function App() {
             <X size={13} /> Clear
           </button>
         )}
-        <button type="button" className="btn btn-ghost ml-auto text-xs" onClick={() => setEditing({})} disabled={!activeProjectId}>
-          <Plus size={14} /> Add segment
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          {aiOn && fleetRows.length > 0 && (
+            <button type="button" className="btn btn-ghost text-xs" onClick={() => setFleetSummaryOpen(true)}>
+              <Sparkles size={14} /> Fleet summary
+            </button>
+          )}
+          <button type="button" className="btn btn-ghost text-xs" onClick={() => setEditing({})} disabled={!activeProjectId}>
+            <Plus size={14} /> Add segment
+          </button>
+        </div>
       </section>
 
       {/* Fleet */}
@@ -467,6 +493,8 @@ export default function App() {
             </div>
           </div>
 
+          <RiskPanel risk={selected.assessment.risk} />
+
           <div className="grid gap-5 lg:grid-cols-2">
             <div className="rounded-lg border border-line bg-panel p-4 shadow-panel">
               <SegmentForm
@@ -487,6 +515,13 @@ export default function App() {
             <ScopeCard assessment={selected.assessment} />
             <ActionsCard assessment={selected.assessment} />
           </div>
+
+          <AiInsights
+            segment={selected.segment}
+            assessment={selected.assessment}
+            configured={aiOn}
+            onOpenSettings={() => setSettingsOpen(true)}
+          />
         </section>
       )}
 
@@ -515,6 +550,12 @@ export default function App() {
           onCancel={() => setConfirm(null)}
           onConfirm={confirm.onConfirm}
         />
+      )}
+      {settingsOpen && (
+        <SettingsModal onClose={() => setSettingsOpen(false)} onSaved={() => setAiOn(aiConfigured())} />
+      )}
+      {fleetSummaryOpen && activeProject && (
+        <AiFleetSummary project={activeProject} rows={visibleRows} onClose={() => setFleetSummaryOpen(false)} />
       )}
 
       {/* Footer */}

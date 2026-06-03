@@ -88,6 +88,37 @@ export interface TechResult {
   vendors: string[]
 }
 
+/** Risk gauge band. Confidence reuses the same enum (High = good). */
+export type RiskBand = 'Low' | 'Medium' | 'High'
+
+/** One scored contributor to a gauge, recorded so the UI can explain the number. */
+export interface RiskFactor {
+  label: string
+  detail: string
+  points: number
+  tone: ReasonTone
+}
+
+/** A single 0–100 gauge with its band and the factors that produced it. */
+export interface RiskGauge {
+  score: number
+  band: RiskBand
+  factors: RiskFactor[]
+}
+
+/**
+ * Indicative screening risk profile — three deterministic gauges.
+ * NOT an integrity / fitness-for-service result.
+ */
+export interface RiskProfile {
+  /** 0–100, higher = harder / riskier to pig as-is. */
+  execution: RiskGauge
+  /** 0–100, higher = MORE confident (fewer assumptions). Band High/Medium/Low. */
+  confidence: RiskGauge
+  /** 0–100, higher = inspect sooner (indicative service severity). */
+  priority: RiskGauge
+}
+
 /** Derived geometry for a segment. */
 export interface Geometry {
   odMm: number
@@ -134,6 +165,7 @@ export interface Assessment {
   rows: TechResult[]
   verdict: Verdict
   rationale: VerdictRationale
+  risk: RiskProfile
   recommended: Recommendation
   blockers: string[]
   actions: string[] // pre-inspection actions, ordered + deduped

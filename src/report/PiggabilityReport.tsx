@@ -1,7 +1,7 @@
 import pdfMake from 'pdfmake/build/pdfmake'
 import pdfFonts from 'pdfmake/build/vfs_fonts'
 import type { TDocumentDefinitions, Content, TableCell } from 'pdfmake/interfaces'
-import type { Assessment } from '../engine/types'
+import type { Assessment, RiskGauge } from '../engine/types'
 import type { Project, StoredSegment } from '../repo/types'
 import { DISCLAIMER_TEXT } from '../ui/Disclaimer'
 
@@ -43,6 +43,28 @@ function kvTable(pairs: [string, string][]): Content {
     },
     layout: 'noBorders',
     margin: [0, 0, 0, 2],
+  }
+}
+
+function riskCell(title: string, gauge: RiskGauge, goodHigh: boolean): Content {
+  const isGood = gauge.band === 'Medium' ? false : (gauge.band === 'High') === goodHigh
+  const bandColor = gauge.band === 'Medium' ? '#B45309' : isGood ? '#047857' : '#BE123C'
+  return {
+    stack: [
+      { text: title.toUpperCase(), fontSize: 7, color: MUTED, characterSpacing: 0.4 },
+      {
+        text: [
+          { text: `${gauge.score}`, fontSize: 15, bold: true, color: INK },
+          { text: ' / 100', fontSize: 8, color: MUTED },
+        ],
+        margin: [0, 1, 0, 0],
+      },
+      { text: gauge.band, fontSize: 9, bold: true, color: bandColor },
+      {
+        ul: gauge.factors.slice(0, 3).map((f) => ({ text: f.label, fontSize: 7, color: MUTED })),
+        margin: [0, 2, 0, 0],
+      },
+    ],
   }
 }
 
@@ -144,6 +166,16 @@ function buildDoc(project: Project, segment: StoredSegment, a: Assessment): TDoc
           ],
         },
         layout: 'noBorders',
+      },
+
+      sectionHeader('Risk & confidence — indicative screening'),
+      {
+        columns: [
+          riskCell('Execution risk', a.risk.execution, false),
+          riskCell('Data confidence', a.risk.confidence, true),
+          riskCell('Inspection priority', a.risk.priority, false),
+        ],
+        columnGap: 12,
       },
 
       sectionHeader('Recommended scope'),

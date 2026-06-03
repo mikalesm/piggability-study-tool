@@ -1,3 +1,4 @@
+import { scoreRisk } from './risk'
 import { TECHNOLOGIES } from './technologies'
 import { odForNb, resolveWall, round } from './wall'
 import type {
@@ -315,6 +316,8 @@ export function assess(segment: Segment, study: StudyInputs): Assessment {
     recommended,
   })
 
+  const risk = scoreRisk(segment, study, { geometry, rows, verdict, blockers, recommended })
+
   // Pre-inspection actions (ordered, then deduped).
   const actions: string[] = []
   if (!study.launcher) actions.push('Install / confirm launcher trap')
@@ -357,6 +360,7 @@ export function assess(segment: Segment, study: StudyInputs): Assessment {
     rows,
     verdict,
     rationale,
+    risk,
     recommended,
     blockers,
     actions: dedupe(actions),

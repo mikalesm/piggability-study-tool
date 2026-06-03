@@ -2,6 +2,7 @@ export * from './types'
 export * from './constants'
 export * from './wall'
 export * from './technologies'
+export * from './risk'
 export * from './piggability'
 
 import type { StudyInputs, Segment, Medium } from './types'

@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUp } from 'lucide-react'
-import type { Assessment, Verdict } from '../engine/types'
+import type { Assessment, RiskBand, Verdict } from '../engine/types'
 import type { StoredSegment } from '../repo/types'
 import { VerdictBadge, AssumptionChip } from './badges'
 
@@ -8,7 +8,30 @@ export interface FleetRow {
   assessment: Assessment
 }
 
-export type SortKey = 'field' | 'header' | 'nb' | 'wt' | 'id' | 'medium' | 'verdict' | 'recommended'
+export type SortKey =
+  | 'field'
+  | 'header'
+  | 'nb'
+  | 'wt'
+  | 'id'
+  | 'medium'
+  | 'verdict'
+  | 'priority'
+  | 'recommended'
+
+const PRIORITY_CHIP: Record<RiskBand, string> = {
+  High: 'bg-rose-500/15 text-rose-300 ring-rose-500/30',
+  Medium: 'bg-amber-500/15 text-amber-300 ring-amber-500/30',
+  Low: 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/30',
+}
+
+function PriorityChip({ band }: { band: RiskBand }) {
+  return (
+    <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-medium ring-1 ${PRIORITY_CHIP[band]}`}>
+      {band}
+    </span>
+  )
+}
 export interface SortState {
   key: SortKey
   dir: 'asc' | 'desc'
@@ -38,6 +61,8 @@ function value(row: FleetRow, key: SortKey): string | number {
       return segment.medium ?? 'Liquid'
     case 'verdict':
       return VERDICT_RANK[assessment.verdict]
+    case 'priority':
+      return assessment.risk.priority.score
     case 'recommended':
       return assessment.recommended.techKey ?? ''
   }
@@ -62,6 +87,7 @@ const COLUMNS: { key: SortKey; label: string; align?: 'right' }[] = [
   { key: 'id', label: 'ID mm', align: 'right' },
   { key: 'medium', label: 'Medium' },
   { key: 'verdict', label: 'Verdict' },
+  { key: 'priority', label: 'Priority' },
   { key: 'recommended', label: 'Recommended' },
 ]
 
@@ -159,6 +185,9 @@ export function FleetTable({
                   <td className="px-3 py-2.5">
                     <VerdictBadge verdict={assessment.verdict} />
                   </td>
+                  <td className="px-3 py-2.5">
+                    <PriorityChip band={assessment.risk.priority.band} />
+                  </td>
                   <td className="num px-3 py-2.5 text-[13px] text-accent/90">
                     {assessment.recommended.techKey ?? '—'}
                   </td>
@@ -190,7 +219,10 @@ export function FleetTable({
                       {segment.field} · {segment.nb}" · {segment.medium ?? 'Liquid'}
                     </div>
                   </div>
-                  <VerdictBadge verdict={assessment.verdict} />
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <VerdictBadge verdict={assessment.verdict} />
+                    <PriorityChip band={assessment.risk.priority.band} />
+                  </div>
                 </div>
                 <div className="num mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-fg-muted">
                   <span>WT {g.wtMm.toFixed(1)}{g.wtComputed ? ' (calc)' : ''}</span>

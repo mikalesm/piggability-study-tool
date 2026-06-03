@@ -1,6 +1,6 @@
 import type { Assessment, StudyInputs } from '../engine/types'
 import type { StoredSegment } from '../repo/types'
-import { AssumptionChip } from './badges'
+import { AssumptionChip, SectionLabel } from './badges'
 
 function Field({
   label,
@@ -12,25 +12,24 @@ function Field({
   hint?: React.ReactNode
 }) {
   return (
-    <label className="flex flex-col gap-1">
-      <span className="text-xs font-medium text-zinc-400">{label}</span>
+    <label className="flex flex-col gap-1.5">
+      <span className="text-xs font-medium text-fg-muted">{label}</span>
       {children}
-      {hint && <span className="text-[11px] text-zinc-600">{hint}</span>}
+      {hint && <span className="text-[10px] leading-tight text-fg-dim">{hint}</span>}
     </label>
   )
 }
 
-const SURVEY_HINT = 'Survey assumption — confirm by field survey'
+const SURVEY_HINT = 'Survey assumption — confirm on site'
 
-const inputCls =
-  'num w-full rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-sm text-zinc-100 outline-none focus:border-accent focus:ring-1 focus:ring-accent'
-
-function Derived({ label, value, mark }: { label: string; value: string; mark?: string }) {
+/** A boxed instrument readout for a single derived value. */
+function Readout({ label, value, unit, mark }: { label: string; value: string; unit?: string; mark?: string }) {
   return (
-    <div className="rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2">
-      <div className="text-[11px] uppercase tracking-wide text-zinc-500">{label}</div>
-      <div className="num mt-0.5 text-sm text-zinc-100">
+    <div className="rounded-md border border-line bg-panel-2/60 px-3 py-2">
+      <div className="label">{label}</div>
+      <div className="num mt-1 text-[15px] text-fg">
         {value}
+        {unit && <span className="ml-1 text-xs text-fg-dim">{unit}</span>}
         {mark && <AssumptionChip label={mark} />}
       </div>
     </div>
@@ -53,41 +52,34 @@ export function SegmentForm({
     onChange({ ...study, [key]: value })
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <section>
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-          Derived geometry
-        </h3>
+        <SectionLabel className="mb-3">Derived geometry</SectionLabel>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          <Derived label="OD" value={`${g.odMm.toFixed(1)} mm`} />
-          <Derived
-            label="Wall thickness"
-            value={`${g.wtMm.toFixed(1)} mm`}
-            mark={g.wtComputed ? 'calc' : undefined}
-          />
-          <Derived label="Bore ID" value={`${g.idMm.toFixed(1)} mm`} />
-          <Derived label="D/t" value={g.dOverT.toFixed(1)} />
-          <Derived
-            label="Length"
-            value={`${g.lengthKm.toFixed(1)} km`}
-            mark={segment.lengthIllustrative ? 'illustr.' : undefined}
-          />
-          <Derived label="Grade" value={segment.grade} />
+          <Readout label="Outside dia" value={g.odMm.toFixed(1)} unit="mm" />
+          <Readout label="Wall thk" value={g.wtMm.toFixed(1)} unit="mm" mark={g.wtComputed ? 'calc' : undefined} />
+          <Readout label="Bore ID" value={g.idMm.toFixed(1)} unit="mm" />
+          <Readout label="D / t" value={g.dOverT.toFixed(1)} />
+          <Readout label="Length" value={g.lengthKm.toFixed(1)} unit="km" mark={segment.lengthIllustrative ? 'illus' : undefined} />
+          <Readout label="Grade" value={segment.grade} />
         </div>
-        <p className="mt-2 text-[11px] text-zinc-600">Objective: {g.objective}</p>
+        <p className="mt-2.5 flex items-center gap-2 text-[11px] text-fg-dim">
+          <span className="label">Objective</span>
+          <span className="text-fg-muted">{g.objective}</span>
+        </p>
       </section>
 
       <section>
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-          Study inputs <span className="text-zinc-600">(survey — not in design data)</span>
-        </h3>
+        <SectionLabel className="mb-3">
+          Study inputs · survey
+        </SectionLabel>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <Field label="Tightest bend (D)" hint={SURVEY_HINT}>
             <input
               type="number"
               step="0.5"
               min="0"
-              className={inputCls}
+              className="field num"
               value={study.bendD}
               onChange={(e) => set('bendD', Number(e.target.value))}
             />
@@ -97,14 +89,14 @@ export function SegmentForm({
               type="number"
               step="0.1"
               min="0"
-              className={inputCls}
+              className="field num"
               value={study.velocity}
               onChange={(e) => set('velocity', Number(e.target.value))}
             />
           </Field>
           <Field label="Medium" hint={segment.mediumAssumed ? 'Assumed in scope' : undefined}>
             <select
-              className={inputCls}
+              className="field"
               value={study.medium}
               onChange={(e) => set('medium', e.target.value as StudyInputs['medium'])}
             >
@@ -114,7 +106,7 @@ export function SegmentForm({
           </Field>
           <Field label="Cleanliness">
             <select
-              className={inputCls}
+              className="field"
               value={study.cleanliness}
               onChange={(e) => set('cleanliness', e.target.value as StudyInputs['cleanliness'])}
             >
@@ -127,39 +119,45 @@ export function SegmentForm({
         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
           <Toggle label="Launcher trap" value={study.launcher} onChange={(v) => set('launcher', v)} />
           <Toggle label="Receiver trap" value={study.receiver} onChange={(v) => set('receiver', v)} />
-          <Toggle
-            label="Reduced-bore valves"
-            value={study.reducedBore}
-            onChange={(v) => set('reducedBore', v)}
-          />
-          <Toggle label="Dual diameter" value={study.dualDia} onChange={(v) => set('dualDia', v)} />
+          <Toggle label="Reduced bore" value={study.reducedBore} onChange={(v) => set('reducedBore', v)} invert />
+          <Toggle label="Dual diameter" value={study.dualDia} onChange={(v) => set('dualDia', v)} invert />
         </div>
       </section>
     </div>
   )
 }
 
+/**
+ * A labelled toggle styled like a panel switch. `invert` flips the accent so a
+ * "YES" on a problem condition (reduced bore, dual diameter) reads as a caution,
+ * not a confirmation.
+ */
 function Toggle({
   label,
   value,
   onChange,
+  invert = false,
 }: {
   label: string
   value: boolean
   onChange: (v: boolean) => void
+  invert?: boolean
 }) {
+  const active = invert
+    ? value
+      ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+      : 'border-line bg-panel-2 text-fg-dim'
+    : value
+      ? 'border-accent/40 bg-accent/10 text-accent'
+      : 'border-line bg-panel-2 text-fg-dim'
   return (
     <button
       type="button"
       onClick={() => onChange(!value)}
-      className={`flex items-center justify-between rounded-md border px-3 py-2 text-xs transition-colors ${
-        value
-          ? 'border-accent/40 bg-accent/10 text-accent'
-          : 'border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-600'
-      }`}
+      className={`flex items-center justify-between rounded-md border px-3 py-2 text-xs transition-colors hover:border-line-strong ${active}`}
     >
       <span>{label}</span>
-      <span className="num">{value ? 'YES' : 'NO'}</span>
+      <span className="num text-[11px] font-semibold">{value ? 'YES' : 'NO'}</span>
     </button>
   )
 }

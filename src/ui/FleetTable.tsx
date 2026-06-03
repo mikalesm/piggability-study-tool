@@ -7,6 +7,8 @@ export interface FleetRow {
   assessment: Assessment
 }
 
+const th = 'px-3 py-2.5 label font-normal'
+
 export function FleetTable({
   rows,
   selectedId,
@@ -17,18 +19,18 @@ export function FleetTable({
   onSelect: (id: string) => void
 }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-zinc-800">
+    <div className="overflow-x-auto rounded-lg border border-line bg-panel shadow-panel">
       <table className="w-full border-collapse text-sm">
         <thead>
-          <tr className="border-b border-zinc-800 bg-zinc-900/60 text-left text-xs uppercase tracking-wide text-zinc-500">
-            <th className="px-3 py-2 font-medium">Field</th>
-            <th className="px-3 py-2 font-medium">Header</th>
-            <th className="px-3 py-2 text-right font-medium">NB"</th>
-            <th className="px-3 py-2 text-right font-medium">WT mm</th>
-            <th className="px-3 py-2 text-right font-medium">Bore ID mm</th>
-            <th className="px-3 py-2 font-medium">Medium</th>
-            <th className="px-3 py-2 font-medium">Verdict</th>
-            <th className="px-3 py-2 font-medium">Recommended tool</th>
+          <tr className="border-b border-line bg-panel-2/60 text-left">
+            <th className={`${th} text-left`}>Field</th>
+            <th className={th}>Header</th>
+            <th className={`${th} text-right`}>NB&quot;</th>
+            <th className={`${th} text-right`}>WT&nbsp;mm</th>
+            <th className={`${th} text-right`}>ID&nbsp;mm</th>
+            <th className={th}>Medium</th>
+            <th className={th}>Verdict</th>
+            <th className={th}>Recommended</th>
           </tr>
         </thead>
         <tbody>
@@ -39,26 +41,31 @@ export function FleetTable({
               <tr
                 key={segment.id}
                 onClick={() => onSelect(segment.id)}
-                className={`cursor-pointer border-b border-zinc-800/60 transition-colors ${
-                  selected ? 'bg-accent/10' : 'hover:bg-zinc-900/50'
+                className={`group cursor-pointer border-b border-line/60 transition-colors last:border-0 ${
+                  selected ? 'bg-accent/[0.07]' : 'hover:bg-panel-2/50'
                 }`}
               >
-                <td className="px-3 py-2 text-zinc-300">{segment.field}</td>
-                <td className="px-3 py-2 text-zinc-100">{segment.header}</td>
-                <td className="num px-3 py-2 text-right text-zinc-300">{segment.nb}</td>
-                <td className="num px-3 py-2 text-right text-zinc-300">
+                <td className="relative px-3 py-2.5 text-fg-muted">
+                  <span
+                    className={`absolute inset-y-0 left-0 w-[2px] ${selected ? 'bg-accent' : 'bg-transparent'}`}
+                  />
+                  {segment.field}
+                </td>
+                <td className="px-3 py-2.5 font-medium text-fg">{segment.header}</td>
+                <td className="num px-3 py-2.5 text-right text-fg-muted">{segment.nb}</td>
+                <td className="num px-3 py-2.5 text-right text-fg-muted">
                   {g.wtMm.toFixed(1)}
                   {g.wtComputed && <AssumptionChip label="calc" />}
                 </td>
-                <td className="num px-3 py-2 text-right text-zinc-300">{g.idMm.toFixed(1)}</td>
-                <td className="px-3 py-2 text-zinc-300">
+                <td className="num px-3 py-2.5 text-right text-fg-muted">{g.idMm.toFixed(1)}</td>
+                <td className="px-3 py-2.5 text-fg-muted">
                   {segment.medium ?? 'Liquid'}
-                  {segment.mediumAssumed && <AssumptionChip label="assumed" />}
+                  {segment.mediumAssumed && <AssumptionChip label="assm" />}
                 </td>
-                <td className="px-3 py-2">
+                <td className="px-3 py-2.5">
                   <VerdictBadge verdict={assessment.verdict} />
                 </td>
-                <td className="px-3 py-2 text-zinc-300">
+                <td className="num px-3 py-2.5 text-[13px] text-accent/90">
                   {assessment.recommended.techKey ?? '—'}
                 </td>
               </tr>

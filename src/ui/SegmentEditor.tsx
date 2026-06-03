@@ -22,9 +22,8 @@ export interface SegmentEditorProps {
   onSave: (segment: StoredSegment) => void
 }
 
-const label = 'text-xs font-medium text-zinc-400'
-const input =
-  'num w-full rounded-md border border-zinc-700 bg-zinc-950 px-2.5 py-1.5 text-sm text-zinc-100 outline-none focus:border-accent focus:ring-1 focus:ring-accent'
+const label = 'text-xs font-medium text-fg-muted'
+const input = 'field'
 
 function slug(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
@@ -103,18 +102,14 @@ export function SegmentEditor({
       onClose={onCancel}
       footer={
         <>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-800"
-          >
+          <button type="button" onClick={onCancel} className="btn btn-ghost">
             Cancel
           </button>
           <button
             type="button"
             disabled={errors.length > 0}
             onClick={() => onSave(build())}
-            className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-zinc-950 hover:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-40"
+            className="btn btn-primary"
           >
             {editing ? 'Save changes' : 'Add segment'}
           </button>
@@ -196,7 +191,7 @@ export function SegmentEditor({
         </Cell>
       </div>
 
-      <label className="mt-3 flex items-center gap-2 text-xs text-zinc-400">
+      <label className="mt-3 flex items-center gap-2 text-xs text-fg-muted">
         <input
           type="checkbox"
           checked={lengthIllustrative}

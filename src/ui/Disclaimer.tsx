@@ -5,8 +5,8 @@ export const DISCLAIMER_TEXT =
 
 export function Disclaimer() {
   return (
-    <div className="flex gap-3 rounded-lg border border-zinc-800 bg-zinc-900/40 p-4 text-xs leading-relaxed text-zinc-400">
-      <ShieldAlert size={18} className="mt-0.5 shrink-0 text-accent" />
+    <div className="flex gap-3 rounded-lg border border-line bg-panel/60 p-4 text-xs leading-relaxed text-fg-dim">
+      <ShieldAlert size={16} className="mt-0.5 shrink-0 text-accent/80" />
       <p>{DISCLAIMER_TEXT}</p>
     </div>
   )

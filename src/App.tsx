@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Download, Database, Gauge, Plus, Pencil, Trash2, AlertTriangle } from 'lucide-react'
+import { Download, Gauge, Plus, Pencil, Trash2, AlertTriangle } from 'lucide-react'
 import { assess, defaultStudy } from './engine'
 import type { Assessment, StudyInputs, Verdict } from './engine/types'
 import { getRepo, repoLabel } from './repo'
@@ -14,7 +14,7 @@ import { SuitabilityMatrix } from './ui/SuitabilityMatrix'
 import { ScopeCard } from './ui/ScopeCard'
 import { ActionsCard } from './ui/ActionsCard'
 import { Disclaimer } from './ui/Disclaimer'
-import { VerdictBadge } from './ui/badges'
+import { VerdictBadge, SectionLabel } from './ui/badges'
 
 const VERDICT_ORDER: Verdict[] = [
   'Piggable',
@@ -36,7 +36,6 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<{ segment?: StoredSegment } | null>(null)
 
-  // Load the segments + studies for a project into state.
   async function loadProject(projectId: string) {
     const repo = await getRepo()
     const segs = await repo.listSegments(projectId)
@@ -48,7 +47,6 @@ export default function App() {
     setSelectedId(segs[0]?.id ?? null)
   }
 
-  // Initial load.
   useEffect(() => {
     let cancelled = false
     ;(async () => {
@@ -66,7 +64,6 @@ export default function App() {
     }
   }, [])
 
-  // Live assessments — skip (don't crash on) any segment that can't derive geometry.
   const fleetRows: FleetRow[] = useMemo(
     () =>
       segments.flatMap((segment) => {
@@ -89,13 +86,11 @@ export default function App() {
     return counts
   }, [fleetRows])
 
-  // ── study edits ───────────────────────────────────────────────────────────
   function updateStudy(segmentId: string, next: StudyInputs) {
     setStudies((prev) => ({ ...prev, [segmentId]: next }))
     void getRepo().then((repo) => repo.saveStudy(segmentId, next))
   }
 
-  // ── project CRUD ──────────────────────────────────────────────────────────
   async function selectProject(id: string) {
     setActiveProjectId(id)
     await loadProject(id)
@@ -148,7 +143,6 @@ export default function App() {
     }
   }
 
-  // ── segment CRUD ──────────────────────────────────────────────────────────
   async function saveSegment(segment: StoredSegment) {
     const repo = await getRepo()
     await repo.saveSegment(segment)
@@ -187,34 +181,50 @@ export default function App() {
   }
 
   if (loading) {
-    return <div className="flex h-full items-center justify-center text-zinc-500">Loading fleet…</div>
+    return (
+      <div className="flex h-full items-center justify-center gap-2 text-fg-dim">
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent shadow-led text-accent" />
+        <span className="label">Loading fleet</span>
+      </div>
+    )
   }
 
-  const btn =
-    'inline-flex items-center gap-1.5 rounded-md border border-zinc-700 px-2.5 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800'
-
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-      {/* Header */}
-      <header className="mb-5 flex flex-col gap-4 border-b border-zinc-800 pb-5 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <Gauge className="text-accent" size={22} />
-            <h1 className="text-xl font-semibold text-zinc-100">Piggability Study Tool</h1>
+    <div className="mx-auto max-w-[1240px] px-4 py-6 sm:px-6">
+      {/* Console header */}
+      <header className="mb-6">
+        <div className="flex items-center justify-between gap-4 border-b border-line pb-4">
+          <div className="flex items-center gap-3">
+            <div className="grid h-9 w-9 place-items-center rounded-md bg-accent/15 ring-1 ring-accent/30">
+              <Gauge size={18} className="text-accent" />
+            </div>
+            <div>
+              <div className="flex items-baseline gap-2.5">
+                <span className="text-[15px] font-semibold tracking-[0.2em] text-fg">PIGGABILITY</span>
+                <span className="label hidden sm:inline">ILI Screening</span>
+              </div>
+              <div className="num mt-1 text-[10px] tracking-wider text-fg-dim">
+                MODULE 0 · PIPELINE INTEGRITY
+              </div>
+            </div>
           </div>
-          <p className="mt-1 text-sm text-zinc-500">
-            {activeProject?.name ?? SEED_PROJECT.name}
-            {activeProject?.client ? ` · ${activeProject.client}` : ''} · {activeProject?.code}
-          </p>
+          <div className="flex items-center gap-2 rounded-md border border-line bg-panel px-2.5 py-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 text-emerald-400 shadow-led" />
+            <span className="label hidden sm:inline">Storage</span>
+            <span className="num text-[11px] text-fg-muted">{repoLabel()}</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2 text-xs text-zinc-500">
-          <Database size={14} />
-          <span>Storage: {repoLabel()}</span>
+        <div className="num mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-fg-dim">
+          <span className="text-fg-muted">{activeProject?.name ?? SEED_PROJECT.name}</span>
+          <span className="text-line-strong">/</span>
+          <span>{activeProject?.client || '—'}</span>
+          <span className="text-line-strong">/</span>
+          <span>{activeProject?.code}</span>
         </div>
       </header>
 
       {/* Project bar */}
-      <div className="mb-5">
+      <div className="mb-6">
         <ProjectBar
           projects={projects}
           activeId={activeProjectId}
@@ -225,17 +235,21 @@ export default function App() {
         />
       </div>
 
-      {/* Fleet rollup chips */}
-      <section className="mb-3 flex flex-wrap items-center gap-2">
-        <span className="text-xs uppercase tracking-wide text-zinc-500">Fleet rollup</span>
-        {VERDICT_ORDER.filter((v) => rollup[v]).map((v) => (
-          <span key={v} className="inline-flex items-center gap-1.5">
-            <VerdictBadge verdict={v} />
-            <span className="num text-sm text-zinc-400">×{rollup[v]}</span>
-          </span>
-        ))}
-        {fleetRows.length === 0 && <span className="text-sm text-zinc-600">No segments yet.</span>}
-        <span className="num ml-auto text-xs text-zinc-500">{fleetRows.length} segments</span>
+      {/* Fleet rollup */}
+      <section className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <SectionLabel>Fleet rollup</SectionLabel>
+        <div className="flex flex-wrap items-center gap-2">
+          {VERDICT_ORDER.filter((v) => rollup[v]).map((v) => (
+            <span key={v} className="inline-flex items-center gap-1.5">
+              <VerdictBadge verdict={v} />
+              <span className="num text-sm text-fg-dim">×{rollup[v]}</span>
+            </span>
+          ))}
+          {fleetRows.length === 0 && <span className="text-sm text-fg-dim">No segments yet.</span>}
+        </div>
+        <span className="num ml-auto text-[11px] text-fg-dim">
+          {fleetRows.length} segment{fleetRows.length === 1 ? '' : 's'}
+        </span>
       </section>
 
       {invalidCount > 0 && (
@@ -246,9 +260,9 @@ export default function App() {
       )}
 
       {/* Fleet table + add */}
-      <section className="mb-6 space-y-3">
+      <section className="mb-7 space-y-3">
         <div className="flex justify-end">
-          <button type="button" className={btn} onClick={() => setEditing({})} disabled={!activeProjectId}>
+          <button type="button" className="btn btn-ghost text-xs" onClick={() => setEditing({})} disabled={!activeProjectId}>
             <Plus size={14} /> Add segment
           </button>
         </div>
@@ -260,17 +274,20 @@ export default function App() {
       {/* Selected segment detail */}
       {selected && (
         <section className="space-y-5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold text-zinc-100">
-              {selected.segment.field} — {selected.segment.header}
-            </h2>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-5">
+            <div className="flex items-baseline gap-3">
+              <h2 className="text-lg font-semibold text-fg">{selected.segment.header}</h2>
+              <span className="num text-xs text-fg-dim">
+                {selected.segment.field} · {selected.segment.nb}&quot; · {selected.segment.grade}
+              </span>
+            </div>
             <div className="flex items-center gap-2">
-              <button type="button" className={btn} onClick={() => setEditing({ segment: selected.segment })}>
+              <button type="button" className="btn btn-ghost text-xs" onClick={() => setEditing({ segment: selected.segment })}>
                 <Pencil size={14} /> Edit
               </button>
               <button
                 type="button"
-                className="inline-flex items-center gap-1.5 rounded-md border border-rose-500/30 px-2.5 py-1.5 text-xs text-rose-300 hover:bg-rose-500/10"
+                className="btn btn-danger text-xs"
                 onClick={() => void deleteSegment(selected.segment.id)}
               >
                 <Trash2 size={14} /> Delete
@@ -278,15 +295,15 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => void exportSelected(selected, selected.assessment)}
-                className="inline-flex items-center gap-2 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-zinc-950 transition-colors hover:bg-accent-soft"
+                className="btn btn-primary"
               >
-                <Download size={16} /> Export PDF
+                <Download size={15} /> Export PDF
               </button>
             </div>
           </div>
 
           <div className="grid gap-5 lg:grid-cols-2">
-            <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4">
+            <div className="rounded-lg border border-line bg-panel p-4 shadow-panel">
               <SegmentForm
                 segment={selected.segment}
                 assessment={selected.assessment}
@@ -318,11 +335,11 @@ export default function App() {
       )}
 
       {/* Disclaimer + roadmap footer */}
-      <footer className="mt-8 space-y-3 border-t border-zinc-800 pt-5">
+      <footer className="mt-9 space-y-3 border-t border-line pt-5">
         <Disclaimer />
-        <p className="text-center text-[11px] text-zinc-600">
-          Module 0 — Piggability. Roadmap: Ingestion/QC · Detection · Classification &amp; Sizing ·
-          Fitness-for-Service · Insights · Report.
+        <p className="num text-center text-[10px] tracking-wider text-fg-dim">
+          MODULE 0 · PIGGABILITY &nbsp;—&nbsp; ROADMAP: INGESTION/QC · DETECTION · CLASSIFICATION &amp;
+          SIZING · FITNESS-FOR-SERVICE · INSIGHTS · REPORT
         </p>
       </footer>
     </div>

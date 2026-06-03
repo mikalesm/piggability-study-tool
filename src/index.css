@@ -3,37 +3,116 @@
 @tailwind utilities;
 
 :root {
+  /* Graphite instrument palette — cool near-black with a faint blue undertone. */
+  --ink: 9 12 17;
+  --panel: 14 19 26;
+  --panel-2: 19 26 34;
+  --panel-3: 27 35 46;
+  --line: 33 42 54;
+  --line-2: 48 60 74;
+  --text: 228 232 238;
+  --muted: 158 170 183;
+  --dim: 123 136 151;
+  --accent: 245 166 35;
   color-scheme: dark;
 }
 
-html,
-body,
-#root {
-  height: 100%;
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: rgb(var(--ink));
+    color: rgb(var(--text));
+    font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Faint blueprint grid + a single signal glow at the top of the console. */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+      radial-gradient(820px 360px at 50% -160px, rgba(245, 166, 35, 0.07), transparent 70%),
+      linear-gradient(rgba(255, 255, 255, 0.016) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.016) 1px, transparent 1px);
+    background-size: 100% 100%, 34px 34px, 34px 34px;
+    -webkit-mask-image: linear-gradient(to bottom, black, transparent 520px);
+    mask-image: linear-gradient(to bottom, black, transparent 520px);
+  }
+
+  #root {
+    position: relative;
+    z-index: 1;
+  }
+
+  ::selection {
+    background: rgb(var(--accent) / 0.25);
+  }
+
+  ::-webkit-scrollbar {
+    width: 11px;
+    height: 11px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgb(var(--line-2));
+    border: 3px solid rgb(var(--ink));
+    border-radius: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
 }
 
-body {
-  margin: 0;
-  background: #09090b; /* zinc-950 */
-  color: #e4e4e7; /* zinc-200 */
-  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  -webkit-font-smoothing: antialiased;
-}
+@layer components {
+  /* Tabular monospace for any numeric / coded data. */
+  .num {
+    font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+  }
 
-/* numeric data uses monospace */
-.num {
-  font-variant-numeric: tabular-nums;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-}
+  /* Instrument-panel label: small, uppercase, tracked, monospace. */
+  .label {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgb(var(--dim));
+  }
 
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-::-webkit-scrollbar-thumb {
-  background: #27272a;
-  border-radius: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
+  .panel {
+    @apply rounded-lg border border-line bg-panel shadow-panel;
+  }
+
+  /* A small accent tick that precedes section labels. */
+  .tick {
+    @apply inline-block h-3 w-[3px] rounded-full bg-accent/80;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .btn-primary {
+    @apply bg-accent text-accent-ink hover:brightness-110;
+  }
+  .btn-ghost {
+    @apply border border-line bg-panel text-fg-muted hover:border-line-strong hover:bg-panel-2 hover:text-fg;
+  }
+  .btn-danger {
+    @apply border border-rose-500/30 bg-panel text-rose-300 hover:bg-rose-500/10;
+  }
+
+  .field {
+    @apply w-full rounded-md border border-line-strong bg-panel-2 px-2.5 py-1.5 text-sm text-fg outline-none transition-colors focus:border-accent/70 focus:ring-1 focus:ring-accent/40;
+  }
 }

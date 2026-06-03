@@ -1,20 +1,17 @@
-import { ListChecks } from 'lucide-react'
 import type { Assessment } from '../engine/types'
+import { SectionLabel } from './badges'
 
 export function ScopeCard({ assessment }: { assessment: Assessment }) {
   return (
-    <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4">
-      <div className="mb-3 flex items-center gap-2">
-        <ListChecks size={16} className="text-accent" />
-        <h3 className="text-sm font-semibold text-zinc-200">Recommended scope</h3>
-      </div>
-      <ol className="space-y-2">
+    <div className="rounded-lg border border-line bg-panel p-4 shadow-panel">
+      <SectionLabel className="mb-3.5">Recommended scope</SectionLabel>
+      <ol className="space-y-2.5">
         {assessment.scope.map((item, i) => (
-          <li key={item} className="flex gap-2.5 text-sm text-zinc-300">
-            <span className="num mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded bg-zinc-800 text-[11px] text-accent">
-              {i + 1}
+          <li key={item} className="flex gap-3 text-sm text-fg-muted">
+            <span className="num mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded border border-line bg-panel-2 text-[11px] text-accent">
+              {String(i + 1).padStart(2, '0')}
             </span>
-            <span>{item}</span>
+            <span className="leading-snug">{item}</span>
           </li>
         ))}
       </ol>

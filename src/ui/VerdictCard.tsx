@@ -1,31 +1,29 @@
-import { Wrench, Ban, Target } from 'lucide-react'
+import { Ban, ShieldCheck } from 'lucide-react'
 import type { Assessment } from '../engine/types'
-import { VerdictBadge } from './badges'
+import { VerdictBadge, SectionLabel } from './badges'
 
 export function VerdictCard({ assessment }: { assessment: Assessment }) {
   const { verdict, recommended, blockers } = assessment
   return (
-    <div className="space-y-4 rounded-lg border border-zinc-800 bg-zinc-900/40 p-4">
+    <div className="flex flex-col gap-4 rounded-lg border border-line bg-panel p-4 shadow-panel">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-zinc-200">Verdict</h3>
+        <SectionLabel>Assessment</SectionLabel>
         <VerdictBadge verdict={verdict} />
       </div>
 
-      <div className="rounded-md border border-zinc-800 bg-zinc-950/40 p-3">
-        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-zinc-500">
-          <Target size={14} className="text-accent" />
-          Recommended primary tool
-        </div>
-        <div className="mt-1 text-lg font-semibold text-accent">
+      {/* Primary tool readout */}
+      <div className="rounded-md border border-line bg-ink/40 p-3.5">
+        <div className="label">Recommended primary tool</div>
+        <div className="num mt-1.5 text-2xl font-semibold tracking-tight text-accent">
           {recommended.techKey ?? 'None viable as-is'}
         </div>
-        <p className="mt-1 text-sm leading-relaxed text-zinc-400">{recommended.why}</p>
+        <p className="mt-1.5 text-sm leading-relaxed text-fg-muted">{recommended.why}</p>
         {recommended.vendors.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1.5">
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
             {recommended.vendors.map((v) => (
               <span
                 key={v}
-                className="rounded bg-zinc-800 px-2 py-0.5 text-[11px] text-zinc-300"
+                className="num rounded border border-line bg-panel-2 px-1.5 py-0.5 text-[11px] text-fg-muted"
               >
                 {v}
               </span>
@@ -35,20 +33,23 @@ export function VerdictCard({ assessment }: { assessment: Assessment }) {
       </div>
 
       <div>
-        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-zinc-500">
+        <div className="mb-1.5 flex items-center gap-2">
           {blockers.length > 0 ? (
-            <Ban size={14} className="text-rose-400" />
+            <Ban size={13} className="text-rose-400" />
           ) : (
-            <Wrench size={14} className="text-emerald-400" />
+            <ShieldCheck size={13} className="text-emerald-400" />
           )}
-          Blockers
+          <span className="label">Blockers</span>
         </div>
         {blockers.length === 0 ? (
-          <p className="mt-1 text-sm text-emerald-300">None identified.</p>
+          <p className="text-sm text-emerald-300/90">None identified.</p>
         ) : (
-          <ul className="mt-1 list-inside list-disc text-sm text-rose-300">
+          <ul className="space-y-1">
             {blockers.map((b) => (
-              <li key={b}>{b}</li>
+              <li key={b} className="flex items-start gap-2 text-sm text-rose-300">
+                <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-rose-400" />
+                {b}
+              </li>
             ))}
           </ul>
         )}

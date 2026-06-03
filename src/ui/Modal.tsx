@@ -22,19 +22,22 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/65 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="my-8 w-full max-w-2xl rounded-xl border border-zinc-800 bg-zinc-900 shadow-2xl"
+        className="my-8 w-full max-w-2xl rounded-xl border border-line-strong bg-panel shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-3.5">
-          <h2 className="text-sm font-semibold text-zinc-100">{title}</h2>
+        <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
+          <div className="flex items-center gap-2.5">
+            <span className="tick" />
+            <h2 className="text-sm font-semibold text-fg">{title}</h2>
+          </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+            className="rounded-md p-1 text-fg-dim transition-colors hover:bg-panel-2 hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
             aria-label="Close"
           >
             <X size={18} />
@@ -42,7 +45,7 @@ export function Modal({
         </div>
         <div className="px-5 py-4">{children}</div>
         {footer && (
-          <div className="flex justify-end gap-2 border-t border-zinc-800 px-5 py-3.5">{footer}</div>
+          <div className="flex justify-end gap-2 border-t border-line px-5 py-3.5">{footer}</div>
         )}
       </div>
     </div>

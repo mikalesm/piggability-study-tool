@@ -42,9 +42,14 @@ const LEVEL_META: Record<Level, { text: string; dot: string }> = {
   'Not suitable': { text: 'text-rose-300', dot: 'bg-rose-400' },
 }
 
+/** Color tokens for a suitability level (reused by the at-a-glance strip). */
+export function levelTone(level: Level): { text: string; dot: string } {
+  return LEVEL_META[level] ?? { text: 'text-fg-muted', dot: 'bg-fg-dim' }
+}
+
 /** Suitability lamp: colored LED + label (color is never the only signal). */
 export function LevelBadge({ level }: { level: Level }) {
-  const m = LEVEL_META[level] ?? { text: 'text-fg-muted', dot: 'bg-fg-dim' }
+  const m = levelTone(level)
   return (
     <span className={`inline-flex items-center gap-2 text-xs font-medium ${m.text}`}>
       <span className={`h-1.5 w-1.5 shrink-0 rounded-full shadow-led ${m.dot}`} />

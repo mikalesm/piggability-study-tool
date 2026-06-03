@@ -10,6 +10,8 @@ import type {
   Technology,
   TechResult,
   Verdict,
+  VerdictRationale,
+  VerdictReason,
 } from './types'
 
 const MFL_KEY = 'MFL (axial)'
@@ -159,6 +161,113 @@ function dedupe(items: string[]): string[] {
   return out
 }
 
+function blockerDetail(blocker: string): string {
+  if (blocker.startsWith('No confirmed launcher')) {
+    return 'A launcher and receiver trap must exist (or be installed) to launch and retrieve the tool.'
+  }
+  if (blocker.startsWith('Reduced-bore')) {
+    return 'Reduced-bore or non-full-bore valves can stop the tool — they must be verified or replaced.'
+  }
+  return blocker
+}
+
+/**
+ * Plain-language explanation of the verdict, derived from the SAME booleans the
+ * verdict ladder uses — so it never diverges from the verdict itself. Pure.
+ */
+function buildRationale(ctx: {
+  verdict: Verdict
+  mlRows: TechResult[]
+  anyML: boolean
+  goodML: boolean
+  noBend: boolean
+  blockers: string[]
+  study: StudyInputs
+  recommended: Recommendation
+}): VerdictRationale {
+  const { verdict, mlRows, anyML, goodML, noBend, blockers, study, recommended } = ctx
+  const reasons: VerdictReason[] = []
+  const flips: string[] = []
+
+  if (verdict === 'Not piggable as-is') {
+    if (noBend) {
+      reasons.push({
+        label: 'Bend radius too tight',
+        detail: `Tightest bend ${study.bendD}D is below the ~1.5D minimum every listed tool needs.`,
+        tone: 'block',
+      })
+      flips.push('Confirm the true bend radius by survey — if ≥ 1.5D, the tools become viable.')
+      return { summary: 'Every tool is blocked by the bend radius.', reasons, flips }
+    }
+    reasons.push({
+      label: 'No viable metal-loss tool',
+      detail:
+        study.medium === 'Gas'
+          ? 'On gas, UT needs a batched liquid couplant and MFL may be defeated by the wall — leaving no clear metal-loss option.'
+          : 'Wall thickness and/or diameter leave no metal-loss tool inside its envelope.',
+      tone: 'block',
+    })
+    if (study.medium === 'Gas') flips.push('Batch a liquid slug for UT, or run on a liquid line.')
+    flips.push('Confirm as-built wall thickness — a thinner wall may bring MFL back into range.')
+    return { summary: 'No metal-loss inspection tool is viable as-is.', reasons, flips }
+  }
+
+  // Metal-loss viability (drives the recommendation).
+  if (goodML) {
+    // Prefer citing the recommended tool when it is the Good one, for coherence
+    // with the headline recommendation.
+    const good =
+      mlRows.find((r) => r.key === recommended.techKey && r.level === 'Good') ??
+      mlRows.find((r) => r.level === 'Good')
+    reasons.push({
+      label: 'Metal-loss tool in range',
+      detail: `${good?.key ?? 'A metal-loss tool'} sits inside its indicative envelope.`,
+      tone: 'ok',
+    })
+  } else if (anyML) {
+    const marg = mlRows.find((r) => r.level === 'Marginal')
+    reasons.push({
+      label: 'Metal-loss tool only marginal',
+      detail: `${marg?.key ?? 'The metal-loss tool'} is usable but outside its ideal window (${marg?.note ?? 'marginal'}).`,
+      tone: 'warn',
+    })
+    flips.push('Bring the marginal driver into range (e.g. velocity or wall) to upgrade the primary tool to Good.')
+  }
+
+  // Blockers.
+  for (const b of blockers) {
+    reasons.push({ label: b, detail: blockerDetail(b), tone: 'block' })
+  }
+  if (!study.launcher || !study.receiver) {
+    flips.push('Confirm a launcher and receiver trap — removes the trap blocker.')
+  }
+  if (study.reducedBore) {
+    flips.push('Verify / replace reduced-bore or non-full-bore valves — removes that blocker.')
+  }
+
+  // Cleanliness.
+  if (study.cleanliness === 'Heavy debris') {
+    reasons.push({
+      label: 'Heavy debris expected',
+      detail: 'Debris must be cleared by a cleaning / gauging run before a tool can pass reliably.',
+      tone: 'warn',
+    })
+    flips.push('Run a cleaning / gauging pass first — clears the debris condition.')
+  }
+
+  let summary: string
+  if (verdict === 'Piggable') {
+    summary = `Meets the screening criteria as-is — ${recommended.techKey ?? 'a metal-loss tool'} is the primary.`
+  } else if (blockers.length > 0) {
+    summary = 'Piggable once the blocker(s) below are resolved.'
+  } else if (study.cleanliness === 'Heavy debris') {
+    summary = 'Piggable after the line is cleaned.'
+  } else {
+    summary = 'Piggable, but the primary tool is only marginal as-is.'
+  }
+  return { summary, reasons, flips }
+}
+
 /** Pure assessment of one segment under a given study. */
 export function assess(segment: Segment, study: StudyInputs): Assessment {
   const geometry = deriveGeometry(segment)
@@ -194,6 +303,17 @@ export function assess(segment: Segment, study: StudyInputs): Assessment {
   }
 
   const recommended = pickRecommendation(rows, study.medium)
+
+  const rationale = buildRationale({
+    verdict,
+    mlRows,
+    anyML,
+    goodML,
+    noBend,
+    blockers,
+    study,
+    recommended,
+  })
 
   // Pre-inspection actions (ordered, then deduped).
   const actions: string[] = []
@@ -236,6 +356,7 @@ export function assess(segment: Segment, study: StudyInputs): Assessment {
     geometry,
     rows,
     verdict,
+    rationale,
     recommended,
     blockers,
     actions: dedupe(actions),

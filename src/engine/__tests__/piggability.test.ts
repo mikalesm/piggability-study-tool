@@ -251,6 +251,52 @@ describe('assess verdicts', () => {
   })
 })
 
+// ---- verdict rationale -----------------------------------------------------
+
+describe('verdict rationale', () => {
+  it('clean liquid line: ok reason, no flips needed', () => {
+    const a = assess(seg({ wtMm: 10, medium: 'Liquid' }), study())
+    expect(a.rationale.summary).toMatch(/as-is/i)
+    expect(a.rationale.reasons.some((r) => r.tone === 'ok')).toBe(true)
+    expect(a.rationale.flips).toHaveLength(0)
+  })
+
+  it('missing trap: block reason + trap flip', () => {
+    const a = assess(seg({ wtMm: 10 }), study({ receiver: false }))
+    expect(a.rationale.reasons.some((r) => r.tone === 'block')).toBe(true)
+    expect(a.rationale.flips.some((f) => /trap/i.test(f))).toBe(true)
+  })
+
+  it('reduced bore: flip mentions valves', () => {
+    const a = assess(seg({ wtMm: 10 }), study({ reducedBore: true }))
+    expect(a.rationale.flips.some((f) => /valve/i.test(f))).toBe(true)
+  })
+
+  it('heavy debris: warn reason + cleaning flip', () => {
+    const a = assess(seg({ wtMm: 10 }), study({ cleanliness: 'Heavy debris' }))
+    expect(a.rationale.reasons.some((r) => /debris/i.test(r.label))).toBe(true)
+    expect(a.rationale.flips.some((f) => /clean/i.test(f))).toBe(true)
+  })
+
+  it('marginal-only metal loss (velocity): warn reason + upgrade flip', () => {
+    const a = assess(seg({ nb: 16, wtMm: 12, medium: 'Liquid' }), study({ velocity: 0.05 }))
+    expect(a.rationale.reasons.some((r) => r.tone === 'warn')).toBe(true)
+    expect(a.rationale.flips.some((f) => /upgrade|range/i.test(f))).toBe(true)
+  })
+
+  it('bend tighter than all: noBend summary', () => {
+    const a = assess(seg({ wtMm: 10 }), study({ bendD: 0.5 }))
+    expect(a.rationale.summary).toMatch(/bend/i)
+    expect(a.rationale.reasons[0].tone).toBe('block')
+  })
+
+  it('gas + heavy wall: no-viable-tool summary', () => {
+    const a = assess(seg({ nb: 16, wtMm: 30, medium: 'Gas' }), study({ medium: 'Gas' }))
+    expect(a.rationale.summary).toMatch(/no metal-loss/i)
+    expect(a.rationale.flips.length).toBeGreaterThan(0)
+  })
+})
+
 // ---- assertions on the seed fleet -----------------------------------------
 
 describe('seed fleet expectations', () => {

@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Download, Gauge, Plus, Pencil, Trash2, AlertTriangle } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Download, Gauge, Plus, Pencil, Trash2, AlertTriangle, Search, X, ArrowRight } from 'lucide-react'
 import { assess, defaultStudy } from './engine'
 import type { Assessment, StudyInputs, Verdict } from './engine/types'
 import { getRepo, repoLabel } from './repo'
 import type { Project, StoredSegment } from './repo/types'
 import { SEED_PROJECT } from './data/seed'
-import { FleetTable, type FleetRow } from './ui/FleetTable'
+import { FleetTable, sortRows, type FleetRow, type SortKey, type SortState } from './ui/FleetTable'
 import { SegmentForm } from './ui/SegmentForm'
 import { SegmentEditor } from './ui/SegmentEditor'
 import { ProjectBar } from './ui/ProjectBar'
+import { ProjectEditor, type ProjectDraft } from './ui/ProjectEditor'
+import { ConfirmDialog } from './ui/ConfirmDialog'
 import { VerdictCard } from './ui/VerdictCard'
 import { SuitabilityMatrix } from './ui/SuitabilityMatrix'
 import { ScopeCard } from './ui/ScopeCard'
@@ -22,9 +24,20 @@ const VERDICT_ORDER: Verdict[] = [
   'Further study',
   'Not piggable as-is',
 ]
+const HINT_KEY = 'piggability.hint.dismissed'
 
 function slug(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+}
+function prefersReduced(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+interface ConfirmState {
+  title: string
+  body: string
+  confirmLabel: string
+  onConfirm: () => void
 }
 
 export default function App() {
@@ -35,6 +48,25 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<{ segment?: StoredSegment } | null>(null)
+
+  const [search, setSearch] = useState('')
+  const [sort, setSort] = useState<SortState>({ key: 'verdict', dir: 'asc' })
+  const [verdictFilter, setVerdictFilter] = useState<Verdict | null>(null)
+
+  const [projectModal, setProjectModal] = useState<'new' | 'edit' | null>(null)
+  const [confirm, setConfirm] = useState<ConfirmState | null>(null)
+
+  const [highlightTech, setHighlightTech] = useState<string | null>(null)
+  const [pulse, setPulse] = useState(false)
+  const [verdictChange, setVerdictChange] = useState<{ from: Verdict; to: Verdict } | null>(null)
+  const [hintDismissed, setHintDismissed] = useState(
+    () => typeof localStorage !== 'undefined' && localStorage.getItem(HINT_KEY) === '1',
+  )
+
+  const detailRef = useRef<HTMLDivElement>(null)
+  const matrixRef = useRef<HTMLDivElement>(null)
+  const lastVerdict = useRef<{ id: string; verdict: Verdict } | null>(null)
+  const timers = useRef<number[]>([])
 
   async function loadProject(projectId: string) {
     const repo = await getRepo()
@@ -61,6 +93,7 @@ export default function App() {
     })()
     return () => {
       cancelled = true
+      timers.current.forEach(clearTimeout)
     }
   }, [])
 
@@ -77,6 +110,23 @@ export default function App() {
   )
   const invalidCount = segments.length - fleetRows.length
 
+  const visibleRows = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    let r = fleetRows
+    if (verdictFilter) r = r.filter((x) => x.assessment.verdict === verdictFilter)
+    if (q) {
+      r = r.filter((x) => {
+        const s = x.segment
+        const a = x.assessment
+        return [s.field, s.header, s.grade, s.medium ?? 'Liquid', a.verdict, a.recommended.techKey ?? '']
+          .join(' ')
+          .toLowerCase()
+          .includes(q)
+      })
+    }
+    return sortRows(r, sort)
+  }, [fleetRows, search, verdictFilter, sort])
+
   const selected = fleetRows.find((r) => r.segment.id === selectedId) ?? null
   const activeProject = projects.find((p) => p.id === activeProjectId) ?? null
 
@@ -86,49 +136,89 @@ export default function App() {
     return counts
   }, [fleetRows])
 
+  // Detect a verdict change on the SAME selected segment (cause→effect feedback).
+  useEffect(() => {
+    if (!selected) {
+      lastVerdict.current = null
+      return
+    }
+    const id = selected.segment.id
+    const v = selected.assessment.verdict
+    const prev = lastVerdict.current
+    if (prev && prev.id === id && prev.verdict !== v) {
+      setVerdictChange({ from: prev.verdict, to: v })
+      if (!prefersReduced()) {
+        setPulse(true)
+        timers.current.push(window.setTimeout(() => setPulse(false), 1500))
+      }
+      timers.current.push(window.setTimeout(() => setVerdictChange(null), 3500))
+    }
+    lastVerdict.current = { id, verdict: v }
+  }, [selected])
+
+  function handleSelect(id: string) {
+    setSelectedId(id)
+    const el = detailRef.current
+    if (el) {
+      requestAnimationFrame(() =>
+        el.scrollIntoView({ behavior: prefersReduced() ? 'auto' : 'smooth', block: 'nearest' }),
+      )
+    }
+  }
+
+  function pickTech(key: string) {
+    setHighlightTech(key)
+    matrixRef.current?.scrollIntoView({ behavior: prefersReduced() ? 'auto' : 'smooth', block: 'nearest' })
+    timers.current.push(window.setTimeout(() => setHighlightTech(null), 1600))
+  }
+
+  function onSort(key: SortKey) {
+    setSort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }))
+  }
+
   function updateStudy(segmentId: string, next: StudyInputs) {
     setStudies((prev) => ({ ...prev, [segmentId]: next }))
     void getRepo().then((repo) => repo.saveStudy(segmentId, next))
   }
 
+  // ── project CRUD ──────────────────────────────────────────────────────────
   async function selectProject(id: string) {
     setActiveProjectId(id)
+    setVerdictFilter(null)
+    setSearch('')
     await loadProject(id)
   }
 
-  async function newProject() {
-    const name = window.prompt('New project name:')?.trim()
-    if (!name) return
+  async function saveProject(draft: ProjectDraft) {
     const repo = await getRepo()
-    const id = `${slug(name) || 'project'}-${crypto.randomUUID().slice(0, 6)}`
-    const project: Project = {
-      id,
-      name,
-      client: '',
-      code: SEED_PROJECT.code,
-      createdAt: new Date().toISOString(),
+    if (projectModal === 'edit' && activeProject) {
+      const updated = { ...activeProject, ...draft }
+      await repo.saveProject(updated)
+      setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
+    } else {
+      const id = `${slug(draft.name) || 'project'}-${crypto.randomUUID().slice(0, 6)}`
+      const project: Project = { id, ...draft, createdAt: new Date().toISOString() }
+      await repo.saveProject(project)
+      setProjects((prev) => [...prev, project])
+      setActiveProjectId(id)
+      setSegments([])
+      setStudies({})
+      setSelectedId(null)
     }
-    await repo.saveProject(project)
-    setProjects((prev) => [...prev, project])
-    setActiveProjectId(id)
-    setSegments([])
-    setStudies({})
-    setSelectedId(null)
+    setProjectModal(null)
   }
 
-  async function renameProject() {
-    if (!activeProject) return
-    const name = window.prompt('Rename project:', activeProject.name)?.trim()
-    if (!name) return
-    const repo = await getRepo()
-    const updated = { ...activeProject, name }
-    await repo.saveProject(updated)
-    setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
-  }
-
-  async function deleteProject() {
+  function askDeleteProject() {
     if (!activeProject || projects.length <= 1) return
-    if (!window.confirm(`Delete project "${activeProject.name}" and all its segments?`)) return
+    setConfirm({
+      title: 'Delete project',
+      body: `Delete "${activeProject.name}" and all of its segments? This cannot be undone.`,
+      confirmLabel: 'Delete project',
+      onConfirm: () => void deleteProject(),
+    })
+  }
+  async function deleteProject() {
+    if (!activeProject) return
     const repo = await getRepo()
     await repo.deleteProject(activeProject.id)
     const remaining = projects.filter((p) => p.id !== activeProject.id)
@@ -141,8 +231,10 @@ export default function App() {
       setStudies({})
       setSelectedId(null)
     }
+    setConfirm(null)
   }
 
+  // ── segment CRUD ──────────────────────────────────────────────────────────
   async function saveSegment(segment: StoredSegment) {
     const repo = await getRepo()
     await repo.saveSegment(segment)
@@ -159,10 +251,17 @@ export default function App() {
     setEditing(null)
   }
 
-  async function deleteSegment(id: string) {
+  function askDeleteSegment(id: string) {
     const seg = segments.find((s) => s.id === id)
     if (!seg) return
-    if (!window.confirm(`Delete segment "${seg.header}"?`)) return
+    setConfirm({
+      title: 'Delete segment',
+      body: `Delete "${seg.header}"? This cannot be undone.`,
+      confirmLabel: 'Delete segment',
+      onConfirm: () => void deleteSegment(id),
+    })
+  }
+  async function deleteSegment(id: string) {
     const repo = await getRepo()
     await repo.deleteSegment(id)
     setSegments((prev) => prev.filter((s) => s.id !== id))
@@ -172,6 +271,7 @@ export default function App() {
       return next
     })
     if (selectedId === id) setSelectedId(null)
+    setConfirm(null)
   }
 
   async function exportSelected(row: FleetRow, assessment: Assessment) {
@@ -180,10 +280,15 @@ export default function App() {
     downloadReport(activeProject, row.segment, assessment)
   }
 
+  function dismissHint() {
+    setHintDismissed(true)
+    if (typeof localStorage !== 'undefined') localStorage.setItem(HINT_KEY, '1')
+  }
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center gap-2 text-fg-dim">
-        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent shadow-led text-accent" />
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent text-accent shadow-led" />
         <span className="label">Loading fleet</span>
       </div>
     )
@@ -223,32 +328,66 @@ export default function App() {
         </div>
       </header>
 
+      {/* First-run hint */}
+      {!hintDismissed && (
+        <div className="mb-5 flex items-start gap-3 rounded-lg border border-accent/20 bg-accent/[0.05] px-4 py-3 text-xs text-fg-muted">
+          <div className="flex flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="label text-accent/90">How it works</span>
+            <span className="inline-flex items-center gap-1.5">
+              Select a line <ArrowRight size={12} className="text-fg-dim" /> read the verdict &amp; why{' '}
+              <ArrowRight size={12} className="text-fg-dim" /> adjust the survey inputs{' '}
+              <ArrowRight size={12} className="text-fg-dim" /> export the study.
+            </span>
+            <span className="text-fg-dim">Hover any ⓘ for a plain-language definition.</span>
+          </div>
+          <button
+            type="button"
+            onClick={dismissHint}
+            className="shrink-0 rounded p-0.5 text-fg-dim hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+            aria-label="Dismiss"
+          >
+            <X size={15} />
+          </button>
+        </div>
+      )}
+
       {/* Project bar */}
       <div className="mb-6">
         <ProjectBar
           projects={projects}
           activeId={activeProjectId}
           onSelect={(id) => void selectProject(id)}
-          onNew={() => void newProject()}
-          onRename={() => void renameProject()}
-          onDelete={() => void deleteProject()}
+          onNew={() => setProjectModal('new')}
+          onRename={() => setProjectModal('edit')}
+          onDelete={askDeleteProject}
         />
       </div>
 
-      {/* Fleet rollup */}
+      {/* Fleet rollup — chips filter the table */}
       <section className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
         <SectionLabel>Fleet rollup</SectionLabel>
         <div className="flex flex-wrap items-center gap-2">
-          {VERDICT_ORDER.filter((v) => rollup[v]).map((v) => (
-            <span key={v} className="inline-flex items-center gap-1.5">
-              <VerdictBadge verdict={v} />
-              <span className="num text-sm text-fg-dim">×{rollup[v]}</span>
-            </span>
-          ))}
+          {VERDICT_ORDER.filter((v) => rollup[v]).map((v) => {
+            const active = verdictFilter === v
+            return (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setVerdictFilter(active ? null : v)}
+                aria-pressed={active}
+                className={`inline-flex items-center gap-1.5 rounded-full transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${
+                  verdictFilter && !active ? 'opacity-45' : ''
+                }`}
+              >
+                <VerdictBadge verdict={v} className={active ? 'ring-2' : ''} />
+                <span className="num text-sm text-fg-dim">×{rollup[v]}</span>
+              </button>
+            )
+          })}
           {fleetRows.length === 0 && <span className="text-sm text-fg-dim">No segments yet.</span>}
         </div>
         <span className="num ml-auto text-[11px] text-fg-dim">
-          {fleetRows.length} segment{fleetRows.length === 1 ? '' : 's'}
+          {visibleRows.length}/{fleetRows.length} shown
         </span>
       </section>
 
@@ -259,44 +398,70 @@ export default function App() {
         </div>
       )}
 
-      {/* Fleet table + add */}
-      <section className="mb-7 space-y-3">
-        <div className="flex justify-end">
-          <button type="button" className="btn btn-ghost text-xs" onClick={() => setEditing({})} disabled={!activeProjectId}>
-            <Plus size={14} /> Add segment
-          </button>
+      {/* Toolbar */}
+      <section className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 sm:max-w-xs">
+          <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-fg-dim" />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search fleet…"
+            aria-label="Search fleet"
+            className="field pl-8"
+          />
         </div>
-        {fleetRows.length > 0 && (
-          <FleetTable rows={fleetRows} selectedId={selectedId} onSelect={setSelectedId} />
+        {(verdictFilter || search) && (
+          <button type="button" className="btn btn-ghost text-xs" onClick={() => { setVerdictFilter(null); setSearch('') }}>
+            <X size={13} /> Clear
+          </button>
+        )}
+        <button type="button" className="btn btn-ghost ml-auto text-xs" onClick={() => setEditing({})} disabled={!activeProjectId}>
+          <Plus size={14} /> Add segment
+        </button>
+      </section>
+
+      {/* Fleet */}
+      <section className="mb-7">
+        {fleetRows.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-line bg-panel/40 p-8 text-center">
+            <p className="text-sm text-fg-muted">This project has no pipeline segments yet.</p>
+            <button type="button" className="btn btn-primary mx-auto mt-3" onClick={() => setEditing({})}>
+              <Plus size={15} /> Add the first segment
+            </button>
+          </div>
+        ) : visibleRows.length === 0 ? (
+          <div className="rounded-lg border border-line bg-panel/40 p-6 text-center text-sm text-fg-dim">
+            No segments match the current filter.
+          </div>
+        ) : (
+          <FleetTable rows={visibleRows} selectedId={selectedId} onSelect={handleSelect} sort={sort} onSort={onSort} />
         )}
       </section>
 
       {/* Selected segment detail */}
       {selected && (
-        <section className="space-y-5">
+        <section ref={detailRef} className="scroll-mt-4 space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-5">
-            <div className="flex items-baseline gap-3">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <h2 className="text-lg font-semibold text-fg">{selected.segment.header}</h2>
               <span className="num text-xs text-fg-dim">
                 {selected.segment.field} · {selected.segment.nb}&quot; · {selected.segment.grade}
               </span>
+              {verdictChange && (
+                <span className="num inline-flex items-center gap-1 rounded border border-accent/30 bg-accent/10 px-1.5 py-0.5 text-[10px] text-accent">
+                  {verdictChange.from} <ArrowRight size={10} /> {verdictChange.to}
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <button type="button" className="btn btn-ghost text-xs" onClick={() => setEditing({ segment: selected.segment })}>
                 <Pencil size={14} /> Edit
               </button>
-              <button
-                type="button"
-                className="btn btn-danger text-xs"
-                onClick={() => void deleteSegment(selected.segment.id)}
-              >
+              <button type="button" className="btn btn-danger text-xs" onClick={() => askDeleteSegment(selected.segment.id)}>
                 <Trash2 size={14} /> Delete
               </button>
-              <button
-                type="button"
-                onClick={() => void exportSelected(selected, selected.assessment)}
-                className="btn btn-primary"
-              >
+              <button type="button" onClick={() => void exportSelected(selected, selected.assessment)} className="btn btn-primary">
                 <Download size={15} /> Export PDF
               </button>
             </div>
@@ -311,10 +476,12 @@ export default function App() {
                 onChange={(next) => updateStudy(selected.segment.id, next)}
               />
             </div>
-            <VerdictCard assessment={selected.assessment} />
+            <VerdictCard assessment={selected.assessment} pulse={pulse} onPickTech={pickTech} />
           </div>
 
-          <SuitabilityMatrix rows={selected.assessment.rows} />
+          <div ref={matrixRef} className="scroll-mt-4">
+            <SuitabilityMatrix rows={selected.assessment.rows} highlightKey={highlightTech} />
+          </div>
 
           <div className="grid gap-5 lg:grid-cols-2">
             <ScopeCard assessment={selected.assessment} />
@@ -323,7 +490,7 @@ export default function App() {
         </section>
       )}
 
-      {/* Editor modal */}
+      {/* Modals */}
       {editing && activeProjectId && (
         <SegmentEditor
           projectId={activeProjectId}
@@ -333,8 +500,24 @@ export default function App() {
           onSave={(seg) => void saveSegment(seg)}
         />
       )}
+      {projectModal && (
+        <ProjectEditor
+          initial={projectModal === 'edit' ? (activeProject ?? undefined) : undefined}
+          onCancel={() => setProjectModal(null)}
+          onSave={(draft) => void saveProject(draft)}
+        />
+      )}
+      {confirm && (
+        <ConfirmDialog
+          title={confirm.title}
+          body={confirm.body}
+          confirmLabel={confirm.confirmLabel}
+          onCancel={() => setConfirm(null)}
+          onConfirm={confirm.onConfirm}
+        />
+      )}
 
-      {/* Disclaimer + roadmap footer */}
+      {/* Footer */}
       <footer className="mt-9 space-y-3 border-t border-line pt-5">
         <Disclaimer />
         <p className="num text-center text-[10px] tracking-wider text-fg-dim">

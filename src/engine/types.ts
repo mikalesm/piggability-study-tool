@@ -107,12 +107,33 @@ export interface Recommendation {
   vendors: string[]
 }
 
+/** Tone for a verdict reason, mirrors the suitability palette. */
+export type ReasonTone = 'block' | 'warn' | 'ok'
+
+/** One structured factor contributing to the verdict. */
+export interface VerdictReason {
+  label: string
+  detail: string
+  tone: ReasonTone
+}
+
+/** Plain-language explanation of why a verdict was reached + how to improve it. */
+export interface VerdictRationale {
+  /** One-line plain-language reason for the verdict. */
+  summary: string
+  /** Structured contributing factors. */
+  reasons: VerdictReason[]
+  /** "What would change the verdict" hints; empty when nothing cheap improves it. */
+  flips: string[]
+}
+
 /** Full assessment output for one segment. */
 export interface Assessment {
   segmentId: string
   geometry: Geometry
   rows: TechResult[]
   verdict: Verdict
+  rationale: VerdictRationale
   recommended: Recommendation
   blockers: string[]
   actions: string[] // pre-inspection actions, ordered + deduped

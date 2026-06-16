@@ -44,6 +44,38 @@ export interface Segment {
   mediumAssumed?: boolean // medium not in scope, assumed
   mopAssumed?: boolean // MOP not in scope, assumed
   lengthIllustrative?: boolean
+  /** Optional field data captured from scope appendices (descriptive, not engine inputs). */
+  traps?: TrapData
+  flowAssurance?: FlowAssurance
+}
+
+/**
+ * Pig-trap (launcher/receiver) data from a scope appendix. Dimensions in mm.
+ * Descriptive — the engine does not size the tool train from these; they drive a
+ * verify-on-site feasibility note, never a hard pass.
+ */
+export interface TrapData {
+  launcherBarrelMm?: number // closure-to-trap-valve, launcher
+  receiverBarrelMm?: number // closure-to-trap-valve, receiver
+  boreMm?: number // pipeline diameter at the trap
+  valveType?: string // e.g. "Ball valve"
+  orientation?: string // e.g. "Horizontal"
+  operabilityConfirmed?: boolean // scope "ok" vs "to be confirmed"
+}
+
+/** Flow-assurance / fluid properties — the driver behind cleaning severity. */
+export interface FlowAssurance {
+  apiGravity?: number
+  pourPointC?: number
+  waxy?: boolean
+  note?: string
+}
+
+/** Verify-on-site trap feasibility outcome for one segment. */
+export interface TrapFeasibility {
+  status: 'ok' | 'confirm' | 'unknown'
+  label: string
+  note: string
 }
 
 /**

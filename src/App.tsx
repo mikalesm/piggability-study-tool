@@ -20,6 +20,7 @@ import { RiskPanel } from './ui/RiskPanel'
 import { SuitabilityMatrix } from './ui/SuitabilityMatrix'
 import { ScopeCard } from './ui/ScopeCard'
 import { ActionsCard } from './ui/ActionsCard'
+import { FieldDataCard } from './ui/FieldDataCard'
 import { Disclaimer } from './ui/Disclaimer'
 import { VerdictBadge, SectionLabel } from './ui/badges'
 
@@ -290,13 +291,22 @@ export default function App() {
 
   async function exportProposal() {
     if (!activeProject || fleetRows.length === 0) return
+    const BIDDER_KEY = 'piggability.bidder'
+    let bidder = typeof localStorage !== 'undefined' ? localStorage.getItem(BIDDER_KEY) ?? '' : ''
+    if (typeof window !== 'undefined') {
+      const entered = window.prompt('Bidder / contractor name for the proposal cover (optional):', bidder)
+      if (entered !== null) {
+        bidder = entered.trim()
+        if (typeof localStorage !== 'undefined') localStorage.setItem(BIDDER_KEY, bidder)
+      }
+    }
     const [{ downloadTenderProposal }, { MELLITAH_PROJECT, MELLITAH_SOW }] = await Promise.all([
       import('./report/TenderProposal'),
       import('./data/mellitah'),
     ])
     const sow = activeProject.id === MELLITAH_PROJECT.id ? MELLITAH_SOW : undefined
     const rows = fleetRows.map((r) => ({ segment: r.segment, assessment: r.assessment }))
-    downloadTenderProposal(activeProject, rows, sow)
+    downloadTenderProposal(activeProject, rows, sow, bidder)
   }
 
   function dismissHint() {
@@ -531,6 +541,8 @@ export default function App() {
             <ScopeCard assessment={selected.assessment} />
             <ActionsCard assessment={selected.assessment} />
           </div>
+
+          <FieldDataCard segment={selected.segment} />
 
           <AiInsights
             segment={selected.segment}

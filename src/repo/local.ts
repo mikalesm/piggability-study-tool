@@ -1,8 +1,9 @@
 import { SEED_PROJECT, SEED_SEGMENTS, SEED_STUDIES } from '../data/seed'
+import { MELLITAH_PROJECT, MELLITAH_SEGMENTS, MELLITAH_STUDIES } from '../data/mellitah'
 import type { StudyInputs } from '../engine/types'
 import type { PiggabilityRepo, Project, StoredSegment } from './types'
 
-const KEY = 'piggability.v1'
+const KEY = 'piggability.v2'
 
 interface Store {
   projects: Project[]
@@ -12,9 +13,15 @@ interface Store {
 
 function seeded(): Store {
   return {
-    projects: [{ ...SEED_PROJECT, createdAt: '2026-06-03T00:00:00.000Z' }],
-    segments: SEED_SEGMENTS.map((s) => ({ ...s, projectId: SEED_PROJECT.id })),
-    studies: { ...SEED_STUDIES },
+    projects: [
+      { ...SEED_PROJECT, createdAt: '2026-06-03T00:00:00.000Z' },
+      { ...MELLITAH_PROJECT, createdAt: '2026-06-16T00:00:00.000Z' },
+    ],
+    segments: [
+      ...SEED_SEGMENTS.map((s) => ({ ...s, projectId: SEED_PROJECT.id })),
+      ...MELLITAH_SEGMENTS.map((s) => ({ ...s, projectId: MELLITAH_PROJECT.id })),
+    ],
+    studies: { ...SEED_STUDIES, ...MELLITAH_STUDIES },
   }
 }
 

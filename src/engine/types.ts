@@ -1,6 +1,6 @@
 // Pure domain types for the piggability engine. No UI / IO dependencies.
 
-export type Grade = 'X60' | 'X65' | 'X70'
+export type Grade = 'X52' | 'X60' | 'X65' | 'X70'
 export type Medium = 'Liquid' | 'Gas'
 export type Cleanliness = 'Clean' | 'Heavy debris'
 export type LocationClass = 1 | 2

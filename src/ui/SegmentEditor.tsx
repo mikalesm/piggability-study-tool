@@ -7,7 +7,7 @@ import { Modal } from './Modal'
 const NB_OPTIONS = Object.keys(OD_BY_NB)
   .map(Number)
   .sort((a, b) => a - b)
-const GRADES: Grade[] = ['X60', 'X65', 'X70']
+const GRADES: Grade[] = ['X52', 'X60', 'X65', 'X70']
 
 const DEFAULT_OBJECTIVE = 'Detect internal & external metal loss'
 

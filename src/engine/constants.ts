@@ -2,7 +2,9 @@ import type { Grade } from './types'
 
 /** Outside diameter (mm) by nominal bore (inches). */
 export const OD_BY_NB: Record<number, number> = {
+  6: 168.3,
   8: 219.1,
+  10: 273.1,
   12: 323.9,
   16: 406.4,
   18: 457.2,
@@ -14,6 +16,7 @@ export const OD_BY_NB: Record<number, number> = {
 
 /** Specified minimum yield strength (MPa) by grade. */
 export const SMYS_MPA: Record<Grade, number> = {
+  X52: 358.53,
   X60: 413.69,
   X65: 448.16,
   X70: 482.63,

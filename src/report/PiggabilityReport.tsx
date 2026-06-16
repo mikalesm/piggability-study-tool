@@ -3,6 +3,7 @@ import pdfFonts from 'pdfmake/build/vfs_fonts'
 import type { TDocumentDefinitions, Content, TableCell } from 'pdfmake/interfaces'
 import type { Assessment, RiskGauge } from '../engine/types'
 import type { Project, StoredSegment } from '../repo/types'
+import { trapFeasibility } from '../engine'
 import { DISCLAIMER_TEXT } from '../ui/Disclaimer'
 
 // pdfmake vfs wiring — handle both legacy and current export shapes.
@@ -73,6 +74,38 @@ function bulletList(items: string[]): Content {
   return { ul: items.map((i) => ({ text: i, fontSize: 9, color: INK, margin: [0, 1, 0, 1] })) }
 }
 
+/** Optional "Field data" section (pig traps + flow assurance) when present. */
+function fieldDataSection(segment: StoredSegment): Content[] {
+  const { traps, flowAssurance: fa } = segment
+  if (!traps && !fa) return []
+  const out: Content[] = [sectionHeader('Field data — from scope appendices')]
+
+  if (traps) {
+    const feas = trapFeasibility(segment)
+    out.push(
+      kvTable([
+        ['Launcher barrel', traps.launcherBarrelMm != null ? `${traps.launcherBarrelMm} mm` : '—'],
+        ['Receiver barrel', traps.receiverBarrelMm != null ? `${traps.receiverBarrelMm} mm` : '—'],
+        ['Trap bore', traps.boreMm != null ? `${traps.boreMm} mm` : '—'],
+        ['Valve / orientation', [traps.valveType, traps.orientation].filter(Boolean).join(' · ') || '—'],
+        ['Trap feasibility', `${feas.label} — ${feas.note}`],
+      ]),
+    )
+  }
+
+  if (fa) {
+    out.push(
+      kvTable([
+        ['API gravity', fa.apiGravity != null ? `${fa.apiGravity}°` : '—'],
+        ['Pour point', fa.pourPointC != null ? `${fa.pourPointC} °C` : '—'],
+        ['Waxy crude', fa.waxy ? 'Yes — drives progressive cleaning before tool runs' : 'No'],
+        ...(fa.note ? ([['Note', fa.note]] as [string, string][]) : []),
+      ]),
+    )
+  }
+  return out
+}
+
 /** Build the pdfmake document definition for one line. */
 function buildDoc(project: Project, segment: StoredSegment, a: Assessment): TDocumentDefinitions {
   const g = a.geometry
@@ -141,6 +174,8 @@ function buildDoc(project: Project, segment: StoredSegment, a: Assessment): TDoc
         ['Length', `${g.lengthKm.toFixed(1)} km${segment.lengthIllustrative ? ' (illustrative)' : ''}`],
         ['Objective', g.objective],
       ]),
+
+      ...fieldDataSection(segment),
 
       sectionHeader('Study assumptions'),
       bulletList(a.assumptions),

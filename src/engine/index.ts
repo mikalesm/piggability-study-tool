@@ -4,6 +4,7 @@ export * from './wall'
 export * from './technologies'
 export * from './risk'
 export * from './piggability'
+export * from './traps'
 
 import type { StudyInputs, Segment, Medium } from './types'
 

@@ -30,7 +30,7 @@ const OBJECTIVE = 'Detect & size internal/external metal loss (MFL per SoW §16)
  * Option Case (Table 2) = 4 manifold lines requiring progressive cleaning.
  * `caseClass` is carried for the tender proposal; the engine ignores extra keys.
  */
-export const MELLITAH_SEGMENTS: Segment[] = [
+const MELLITAH_BASE: Segment[] = [
   // ── Base Case (Table 1) ────────────────────────────────────────────────────
   {
     id: 'm-30oil',
@@ -169,6 +169,54 @@ export const MELLITAH_SEGMENTS: Segment[] = [
     objective: OBJECTIVE,
   },
 ]
+
+/**
+ * Field data from SoW appendices, merged onto the segments below.
+ * - traps: launcher/receiver barrel (closure-to-trap-valve A), trap bore (F),
+ *   valve type and operability, from Appendix II (all Horizontal / Ball valve).
+ * - flowAssurance: crude analyses from Appendix II (API gravity, pour point);
+ *   where no line-specific sample exists, the waxy field crude is noted generally.
+ */
+const FIELD_DATA: Record<string, Pick<Segment, 'traps' | 'flowAssurance'>> = {
+  'm-30oil': {
+    traps: { launcherBarrelMm: 6370, receiverBarrelMm: 6197, boreMm: 762, valveType: 'Ball valve', orientation: 'Horizontal', operabilityConfirmed: true },
+    flowAssurance: { waxy: true, note: 'Waxy field crude (pour point ~34–35 °C); no line-specific sample in scope.' },
+  },
+  'm-8r82': {
+    traps: { launcherBarrelMm: 3823, receiverBarrelMm: 3823, boreMm: 219, valveType: 'Ball valve', orientation: 'Horizontal', operabilityConfirmed: true },
+    flowAssurance: { apiGravity: 40.26, pourPointC: 37, waxy: true, note: 'R-82 → A-100 sample (2021): pour point 98.6 °F.' },
+  },
+  'm-10uu': {
+    traps: { launcherBarrelMm: 4680, receiverBarrelMm: 8150, boreMm: 254, valveType: 'Ball valve', orientation: 'Horizontal', operabilityConfirmed: false },
+    flowAssurance: { apiGravity: 42.46, pourPointC: 35, waxy: true, note: 'UU export-line sample (2010).' },
+  },
+  'm-6kk': {
+    traps: { launcherBarrelMm: 2474, receiverBarrelMm: 2453, boreMm: 152.4, valveType: 'Ball valve', orientation: 'Horizontal', operabilityConfirmed: false },
+    flowAssurance: { waxy: true, note: 'Waxy field crude (pour point ~34–35 °C); no line-specific sample in scope.' },
+  },
+  'm-6oo': {
+    traps: { launcherBarrelMm: 5880, receiverBarrelMm: 5880, boreMm: 152.4, valveType: 'Ball valve', orientation: 'Horizontal', operabilityConfirmed: false },
+    flowAssurance: { waxy: true, note: 'Waxy field crude (pour point ~34–35 °C); no line-specific sample in scope.' },
+  },
+  'm-10m1': {
+    traps: { launcherBarrelMm: 4700, receiverBarrelMm: 5456, boreMm: 254, valveType: 'Ball valve', orientation: 'Horizontal', operabilityConfirmed: true },
+    flowAssurance: { apiGravity: 42.42, pourPointC: 35, waxy: true, note: 'M1 crude sample (2010): freezing 32 °C, flash 40 °C.' },
+  },
+  'm-10m2': {
+    traps: { launcherBarrelMm: 4700, receiverBarrelMm: 5456, boreMm: 254, valveType: 'Ball valve', orientation: 'Horizontal', operabilityConfirmed: true },
+    flowAssurance: { apiGravity: 42.01, pourPointC: 34, waxy: true, note: 'M2 crude sample (2010): freezing 31 °C, flash 34 °C, BS&W 11%.' },
+  },
+  'm-10m3': {
+    traps: { launcherBarrelMm: 4700, receiverBarrelMm: 5456, boreMm: 254, valveType: 'Ball valve', orientation: 'Horizontal', operabilityConfirmed: true },
+    flowAssurance: { waxy: true, note: 'Waxy field crude (pour point ~34–35 °C); high-pressure M3 line (~720 psi).' },
+  },
+  'm-8m3': {
+    traps: { launcherBarrelMm: 4555, receiverBarrelMm: 6530, boreMm: 203.2, valveType: 'Ball valve', orientation: 'Horizontal', operabilityConfirmed: true },
+    flowAssurance: { waxy: true, note: 'Waxy field crude (pour point ~34–35 °C); high-pressure M3 line (~700 psi).' },
+  },
+}
+
+export const MELLITAH_SEGMENTS: Segment[] = MELLITAH_BASE.map((s) => ({ ...s, ...FIELD_DATA[s.id] }))
 
 /**
  * Survey-input overrides reflecting the SoW. Everything else defaults.

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Download, Gauge, Plus, Pencil, Trash2, AlertTriangle, Search, X, ArrowRight, Settings2, Sparkles } from 'lucide-react'
+import { Download, Gauge, Plus, Pencil, Trash2, AlertTriangle, Search, X, ArrowRight, Settings2, Sparkles, FileText } from 'lucide-react'
 import { assess, defaultStudy } from './engine'
 import { aiConfigured } from './ai'
 import type { Assessment, StudyInputs, Verdict } from './engine/types'
@@ -288,6 +288,17 @@ export default function App() {
     downloadReport(activeProject, row.segment, assessment)
   }
 
+  async function exportProposal() {
+    if (!activeProject || fleetRows.length === 0) return
+    const [{ downloadTenderProposal }, { MELLITAH_PROJECT, MELLITAH_SOW }] = await Promise.all([
+      import('./report/TenderProposal'),
+      import('./data/mellitah'),
+    ])
+    const sow = activeProject.id === MELLITAH_PROJECT.id ? MELLITAH_SOW : undefined
+    const rows = fleetRows.map((r) => ({ segment: r.segment, assessment: r.assessment }))
+    downloadTenderProposal(activeProject, rows, sow)
+  }
+
   function dismissHint() {
     setHintDismissed(true)
     if (typeof localStorage !== 'undefined') localStorage.setItem(HINT_KEY, '1')
@@ -439,6 +450,11 @@ export default function App() {
           {aiOn && fleetRows.length > 0 && (
             <button type="button" className="btn btn-ghost text-xs" onClick={() => setFleetSummaryOpen(true)}>
               <Sparkles size={14} /> Fleet summary
+            </button>
+          )}
+          {fleetRows.length > 0 && (
+            <button type="button" className="btn btn-ghost text-xs" onClick={() => void exportProposal()}>
+              <FileText size={14} /> Tender proposal
             </button>
           )}
           <button type="button" className="btn btn-ghost text-xs" onClick={() => setEditing({})} disabled={!activeProjectId}>
